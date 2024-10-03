@@ -1,0 +1,60 @@
+# Игнорирование файлов сборки
+/cmake-build-debug/
+/cmake-build-release/
+/build/
+
+# Игнорирование конфигурационных файлов CLion
+.idea/
+*.iml
+
+# Игнорирование системных файлов macOS
+.DS_Store
+
+# Игнорирование временных файлов C++
+*.obj
+*.o
+*.a
+*.so
+*.exe
+*.out
+
+# Игнорирование файлов CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Игнорирование логов
+*.log
+
+# Игнорирование файлов сгенерированных во время отладки
+*.dSYM/
+*.stackdump
+.vscode/
+
+# Игнорирование файлов связанных с библиотеками
+*.a
+*.lib
+*.dll
+*.dylib
+*.pdb
+
+# Игнорирование временных файлов редакторов
+*~
+*.swp
+*.swo
+
+# Игнорирование файлов пакетов (Linux, Windows)
+*.deb
+*.rpm
+*.tar.gz
+*.zip
+*.7z
+*.rar
+*.msi
+
+# Игнорирование временных файлов CLion при работе с GDB
+*.gdb
+*.session
+*.layout
+*.launch
