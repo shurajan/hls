@@ -7,6 +7,7 @@
 
 #include <string>
 #include <map>
+#include <NetworkClientBase.h>
 #include <vector>
 
 // Перечисление разрешений
@@ -27,12 +28,14 @@ enum class Resolution {
 // Абстрактный класс для анализа плейлистов
 class PlaylistParserBase {
 public:
+    PlaylistParserBase(network::NetworkClientBase* client) : client_(client) {}
     virtual ~PlaylistParserBase() = default;
 
     // Виртуальный метод для разбора плейлиста
     virtual std::vector<std::string>  parse_m3u8_playlist(const std::string& playlist, Resolution resolution) = 0;
 
 protected:
+    network::NetworkClientBase* client_;  // Указатель на сетевой клиент
     // Метод для получения карты разрешений
     std::map<Resolution, int> get_resolutions_map() const {
         return {

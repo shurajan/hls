@@ -7,28 +7,45 @@ project(hls)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Указываем путь к исходным файлам
+# Указываем пути к исходным файлам
 set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
+set(NETWORK_SRC_DIR "${SRC_DIR}/network")
 
-# Добавляем исходные файлы
-add_executable(hls
+# Главные исходные файлы
+set(MAIN_SOURCES
         ${SRC_DIR}/main.cpp
         ${SRC_DIR}/PlaylistParserSiteCbr.cpp
-        ${SRC_DIR}/NetworkClient.cpp
 )
 
-# Включаем заголовочные файлы в компиляцию
-target_include_directories(hls
-        PRIVATE
-        ${SRC_DIR}
+# Исходники библиотеки NetworkClientLib
+set(NETWORK_SOURCES
+        ${NETWORK_SRC_DIR}/NetworkClient.cpp
+        ${NETWORK_SRC_DIR}/NetworkClientSocks5.cpp
+        ${NETWORK_SRC_DIR}/NetworkClientBase.cpp  # Не забудьте добавить базовый класс
 )
 
-# Подключаем Boost
-find_package(Boost 1.82 REQUIRED COMPONENTS system iostreams)
-find_package(OpenSSL REQUIRED)
+# Создаем статическую библиотеку NetworkClientLib
+add_library(NetworkClientLib STATIC
+        ${NETWORK_SOURCES}
+)
 
-target_link_libraries(hls PRIVATE Boost::system Boost::iostreams OpenSSL::SSL)
+# Добавляем исполняемый файл hls
+add_executable(hls
+        ${MAIN_SOURCES}
+)
 
-# Сообщаем о успешной сборке
+# Включаем заголовочные файлы в компиляцию для hls
+target_include_directories(hls PRIVATE ${SRC_DIR} ${NETWORK_SRC_DIR})
+
+# Включаем заголовочные файлы в компиляцию для библиотеки NetworkClientLib
+target_include_directories(NetworkClientLib PUBLIC ${SRC_DIR} ${NETWORK_SRC_DIR})
+
+# Подключаем libcurl и zlib
+find_package(CURL REQUIRED)
+find_package(ZLIB REQUIRED)
+
+# Линкуем NetworkClientLib, libcurl и zlib к исполняемому файлу hls
+target_link_libraries(hls PRIVATE NetworkClientLib CURL::libcurl ZLIB::ZLIB)
+
+# Сообщение о завершении настройки
 message(STATUS "HLS project configured successfully.")
-

@@ -1,5 +1,4 @@
 #include "PlaylistParserSiteCbr.h"
-#include "NetworkClient.h"
 #include <regex>
 #include <sstream>
 #include <iostream>
@@ -34,15 +33,18 @@ std::vector<std::string> parse_ts_segments(const std::string& playlist_content, 
     return segment_urls;
 }
 
+//Конструктор
+PlaylistParserSiteCbr::PlaylistParserSiteCbr(network::NetworkClientBase* client)
+    : PlaylistParserBase(client) {
+}
+
 // Основная функция парсинга плейлиста
 std::vector<std::string> PlaylistParserSiteCbr::parse_m3u8_playlist(const std::string& playlist_url, Resolution resolution) {
-    // Создаем объект NetworkClient для загрузки данных
-    NetworkClient client;
 
-    // Загружаем плейлист
     std::string playlist_content;
     try {
-        playlist_content = client.fetch(playlist_url); // Загрузка плейлиста по URL
+        playlist_content = client_->fetch(playlist_url); // Загрузка плейлиста по URL
+        std::cout << "Playlist content: " << playlist_content << std::endl;
     } catch (const std::exception& e) {
         throw std::runtime_error("Failed to fetch playlist: " + std::string(e.what()));
     }
@@ -96,7 +98,7 @@ std::vector<std::string> PlaylistParserSiteCbr::parse_m3u8_playlist(const std::s
     // Загружаем новый плейлист (в котором содержатся ссылки на .ts файлы)
     std::string new_playlist_content;
     try {
-        new_playlist_content = client.fetch(selected_playlist_url); // Загружаем следующий плейлист
+        new_playlist_content = client_->fetch(selected_playlist_url); // Загружаем следующий плейлист
     } catch (const std::exception& e) {
         throw std::runtime_error("Failed to fetch .ts playlist: " + std::string(e.what()));
     }

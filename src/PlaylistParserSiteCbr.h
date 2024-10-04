@@ -10,6 +10,9 @@
 // Конкретная реализация для сайта CBR
 class PlaylistParserSiteCbr : public PlaylistParserBase {
 public:
+   // Конструктор принимает указатель на объект NetworkClientBase
+   PlaylistParserSiteCbr(network::NetworkClientBase* client);
+
    std::vector<std::string> parse_m3u8_playlist(const std::string& playlist, Resolution resolution) override;
 };
 
