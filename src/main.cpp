@@ -1,27 +1,24 @@
 #include "PlaylistParserSiteCbr.h"
-#include "NetworkClient.h"
+#include "StreamDownloader.h"
 #include <iostream>
-#include <NetworkClientSocks5.h>
+#include <NetworkClient.h>
+#include <string>
 
 int main() {
-    // Инициализируем клиент через указатель базового класса
-    //network::NetworkClient client;
-    network::NetworkClientSocks5 client = network::NetworkClientSocks5(
-        "127.0.0.1",
-        1080);
+    // Путь к HLS мастер-плейлисту
+    std::string playlist_url = "https://example.com/playlist.m3u8";
+    // Выбор разрешения
+    m3u8::Resolution resolution = m3u8::Resolution::P720;
 
-    PlaylistParserSiteCbr parser(&client);  // Передаем указатель на базовый класс
+    // Файл для сохранения загруженного стрима
+    std::string output_file = "output_stream.ts";
+    network::NetworkClient network_client = network::NetworkClient();
+    // Создаем объект парсера и загрузчика
+    m3u8::PlaylistParserSiteCbr parser = m3u8::PlaylistParserSiteCbr(&network_client);
+    m3u8::StreamDownloader downloader(parser);
 
-    std::string playlist_url = "https://somcdn.com/live-hls/st:some11234567_trns_h264/playlist.m3u8";
-
-    try {
-        std::vector<std::string> ts_links = parser.parse_m3u8_playlist(playlist_url, Resolution::P720);
-        for (const std::string& link : ts_links) {
-            std::cout << "Segment URL: " << link << std::endl;
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
+    // Запуск загрузки
+    downloader.download_stream(playlist_url, resolution, output_file);
 
     return 0;
 }

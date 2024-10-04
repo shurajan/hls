@@ -10,18 +10,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Указываем пути к исходным файлам
 set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
 set(NETWORK_SRC_DIR "${SRC_DIR}/network")
+set(HLS_SRC_DIR "${SRC_DIR}/m3u8")
 
 # Главные исходные файлы
 set(MAIN_SOURCES
         ${SRC_DIR}/main.cpp
-        ${SRC_DIR}/PlaylistParserSiteCbr.cpp
+        ${HLS_SRC_DIR}/PlaylistParserSiteCbr.cpp
+        ${HLS_SRC_DIR}/StreamDownloader.h
 )
 
 # Исходники библиотеки NetworkClientLib
 set(NETWORK_SOURCES
         ${NETWORK_SRC_DIR}/NetworkClient.cpp
         ${NETWORK_SRC_DIR}/NetworkClientSocks5.cpp
-        ${NETWORK_SRC_DIR}/NetworkClientBase.cpp  # Не забудьте добавить базовый класс
+        ${NETWORK_SRC_DIR}/NetworkClientBase.cpp
 )
 
 # Создаем статическую библиотеку NetworkClientLib
@@ -35,7 +37,7 @@ add_executable(hls
 )
 
 # Включаем заголовочные файлы в компиляцию для hls
-target_include_directories(hls PRIVATE ${SRC_DIR} ${NETWORK_SRC_DIR})
+target_include_directories(hls PRIVATE ${SRC_DIR} ${NETWORK_SRC_DIR} ${HLS_SRC_DIR})
 
 # Включаем заголовочные файлы в компиляцию для библиотеки NetworkClientLib
 target_include_directories(NetworkClientLib PUBLIC ${SRC_DIR} ${NETWORK_SRC_DIR})
