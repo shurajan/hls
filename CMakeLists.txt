@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.29)
+cmake_minimum_required(VERSION 3.22.1)
 
 # Имя проекта
 project(hls)
@@ -15,7 +15,10 @@ set(HLS_SRC_DIR "${SRC_DIR}/m3u8")
 # Главные исходные файлы
 set(MAIN_SOURCES
         ${SRC_DIR}/main.cpp
-        ${HLS_SRC_DIR}/PlaylistParserSiteCbr.cpp
+        ${HLS_SRC_DIR}/M3U8Parser.cpp
+        ${HLS_SRC_DIR}/StreamSegments.cpp
+        ${HLS_SRC_DIR}/LiveStreamSegments.cpp
+        ${HLS_SRC_DIR}/FixedStreamSegments.cpp
         ${HLS_SRC_DIR}/StreamDownloader.h
 )
 

@@ -2,7 +2,7 @@
 #ifndef STREAM_DOWNLOADER_H
 #define STREAM_DOWNLOADER_H
 
-#include "PlaylistParserBase.h"
+#include "StreamSegments.h"
 #include <string>
 #include <vector>
 #include <fstream>
@@ -16,7 +16,7 @@ namespace m3u8 {
 
 class StreamDownloader {
 public:
-    StreamDownloader(PlaylistParserBase& parser) : parser_(parser) {}
+    StreamDownloader(StreamSegments& parser) : parser_(parser) {}
     
     void download_stream(const std::string& playlist_url, Resolution resolution, const std::string& output_file) {
         CURL* curl;
@@ -37,7 +37,7 @@ public:
 
         while (!stop_signal_) {
             // Получаем ссылки на сегменты
-            std::vector<std::string> ts_links = parser_.parse_m3u8_playlist(playlist_url, resolution);
+            std::vector<std::string> ts_links = parser_.get_segments();
             
             // Загружаем сегменты по очереди
             for (const auto& ts_link : ts_links) {
@@ -75,7 +75,7 @@ public:
     }
 
 private:
-    PlaylistParserBase& parser_;
+    StreamSegments& parser_;
     inline static bool stop_signal_ = false;
 
     static size_t write_data(void* ptr, size_t size, size_t nmemb, std::ofstream* file) {

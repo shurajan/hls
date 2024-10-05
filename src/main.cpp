@@ -1,4 +1,4 @@
-#include "PlaylistParserSiteCbr.h"
+#include "LiveStreamSegments.h"
 #include "StreamDownloader.h"
 #include <iostream>
 #include <NetworkClient.h>
@@ -14,7 +14,7 @@ int main() {
     std::string output_file = "output_stream.ts";
     network::NetworkClient network_client = network::NetworkClient();
     // Создаем объект парсера и загрузчика
-    m3u8::PlaylistParserSiteCbr parser = m3u8::PlaylistParserSiteCbr(&network_client);
+    m3u8::LiveStreamSegments parser = m3u8::LiveStreamSegments(playlist_url,resolution,&network_client);
     m3u8::StreamDownloader downloader(parser);
 
     // Запуск загрузки

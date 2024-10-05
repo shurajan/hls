@@ -58,3 +58,6 @@ Makefile
 *.session
 *.layout
 *.launch
+
+# temp txt
+temp.txt
