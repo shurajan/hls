@@ -3,24 +3,10 @@
 
 #include <string>
 #include <vector>
-#include "network/NetworkClientBase.h"  // Предполагается, что есть такой класс для сетевых запросов
+#include "network/NetworkClientBase.h"
+#include "ResolutionWrapper.h"
 
 namespace m3u8 {
-
-    // Перечисление разрешений
-    enum class Resolution {
-        Max,
-        Min,
-        P144,
-        P240,
-        P360,
-        P480,
-        P540,
-        P720,
-        P1080,
-        P1440,
-        P2160
-    };
 
     // Базовый класс для сегментов потока
     class StreamSegments {
@@ -39,11 +25,8 @@ namespace m3u8 {
         // Логика парсинга мастер-листа и выбор медиаплейлиста на основе разрешения
         void initializeMediaPlaylist(const std::string &masterPlaylistURI, Resolution resolution);
 
-        // Преобразование разрешения в строку
-        std::string resolutionToString(Resolution resolution);
-
-        // Преобразование строки в разрешение
-        Resolution stringToResolution(const std::string& resolutionStr);
+        // Логика парсинга мастер-листа и выбор медиаплейлиста на основе разрешения
+        void initializeMediaPlaylist(const std::string &masterPlaylistURI, const std::string &resolution);
 
     public:
         StreamSegments(network::NetworkClientBase* network_client) : networkClient(network_client) {}

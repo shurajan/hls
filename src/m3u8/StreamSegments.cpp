@@ -1,6 +1,6 @@
 #include "StreamSegments.h"
 #include "M3U8Parser.h"
-#include <iostream>
+#include "ResolutionWrapper.h"
 #include <map>
 #include <stdexcept>
 
@@ -18,36 +18,6 @@ std::string StreamSegments::getBaseURL(const std::string &url) {
 // Проверка, является ли это полный URL или относительный путь (chunk)
 bool StreamSegments::isFullURL(const std::string& uri) {
     return uri.find("http://") == 0 || uri.find("https://") == 0;
-}
-
-// Преобразование разрешения в строку
-std::string StreamSegments::resolutionToString(Resolution resolution) {
-    switch (resolution) {
-        case Resolution::P144: return "256x144";
-        case Resolution::P240: return "426x240";
-        case Resolution::P360: return "640x360";
-        case Resolution::P480: return "854x480";
-        case Resolution::P540: return "960x540";
-        case Resolution::P720: return "1280x720";
-        case Resolution::P1080: return "1920x1080";
-        case Resolution::P1440: return "2560x1440";
-        case Resolution::P2160: return "3840x2160";
-        default: return "";
-    }
-}
-
-// Преобразование строки в разрешение
-Resolution StreamSegments::stringToResolution(const std::string& resolutionStr) {
-    if (resolutionStr == "256x144") return Resolution::P144;
-    if (resolutionStr == "426x240") return Resolution::P240;
-    if (resolutionStr == "640x360") return Resolution::P360;
-    if (resolutionStr == "854x480") return Resolution::P480;
-    if (resolutionStr == "960x540") return Resolution::P540;
-    if (resolutionStr == "1280x720") return Resolution::P720;
-    if (resolutionStr == "1920x1080") return Resolution::P1080;
-    if (resolutionStr == "2560x1440") return Resolution::P1440;
-    if (resolutionStr == "3840x2160") return Resolution::P2160;
-    return Resolution::Min;  // По умолчанию, если не найдено, возвращаем минимальное разрешение
 }
 
 // Реализация метода initializeMediaPlaylist
@@ -76,7 +46,7 @@ void StreamSegments::initializeMediaPlaylist(const std::string &masterPlaylistUR
     } else if (resolution == Resolution::Min) {
         mediaPlaylistURI = resolutionMap.begin()->second; // Минимальное разрешение
     } else {
-        std::string targetResolution = resolutionToString(resolution);
+        std::string targetResolution = ResolutionWrapper::toString(resolution);
         for (const auto& stream : masterParser.getStreams()) {
             if (stream.resolution == targetResolution) {
                 mediaPlaylistURI = stream.uri;
@@ -98,4 +68,8 @@ void StreamSegments::initializeMediaPlaylist(const std::string &masterPlaylistUR
     mediaPlaylistContent = networkClient->fetch(mediaPlaylistURI);
 }
 
+void StreamSegments::initializeMediaPlaylist(const std::string &masterPlaylistURI, const std::string &resolution) {
+    Resolution resolutionValue = ResolutionWrapper::fromString(resolution);
+    this->initializeMediaPlaylist(masterPlaylistURI, resolutionValue);
+}
 } // namespace m3u8

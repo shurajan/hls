@@ -20,6 +20,7 @@ set(MAIN_SOURCES
         ${HLS_SRC_DIR}/LiveStreamSegments.cpp
         ${HLS_SRC_DIR}/FixedStreamSegments.cpp
         ${HLS_SRC_DIR}/StreamDownloader.h
+        src/m3u8/ResolutionWrapper.h
 )
 
 # Исходники библиотеки NetworkClientLib

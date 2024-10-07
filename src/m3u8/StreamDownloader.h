@@ -18,7 +18,7 @@ class StreamDownloader {
 public:
     StreamDownloader(StreamSegments& parser) : parser_(parser) {}
     
-    void download_stream(const std::string& playlist_url, Resolution resolution, const std::string& output_file) {
+    void download_stream(const std::string& playlist_url, const std::string& output_file) {
         CURL* curl;
         CURLcode res;
         curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -69,7 +69,7 @@ public:
         curl_global_cleanup();
         std::cout << "Загрузка завершена." << std::endl;
     }
-    
+
     static void stop() {
         stop_signal_ = true;
     }

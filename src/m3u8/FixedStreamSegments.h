@@ -11,9 +11,26 @@ namespace m3u8 {
 
     class FixedStreamSegments : public StreamSegments {
     public:
-        // Конструктор принимает ссылку на мастер-лист, разрешение и сетевой клиент
-        FixedStreamSegments(const std::string &masterPlaylistURI, Resolution resolution, network::NetworkClientBase* network_client);
+        template<typename ResolutionType>
+        FixedStreamSegments(network::NetworkClientBase *network_client, const std::string &masterPlaylistURI, ResolutionType resolution)
+            : StreamSegments(network_client) {
 
+            if constexpr (std::is_same<ResolutionType, Resolution>::value) {
+                // Логика для enum class Resolution
+                initializeMediaPlaylist(masterPlaylistURI, resolution);
+            } else if constexpr (std::is_same<ResolutionType, std::string>::value) {
+                // Логика для строки (const std::string&)
+                initializeMediaPlaylist(masterPlaylistURI, resolution);
+            } else if constexpr (std::is_same<ResolutionType, const char*>::value) {
+                // Преобразуем строковый литерал в std::string и вызываем соответствующую логику
+                initializeMediaPlaylist(masterPlaylistURI, std::string(resolution));
+            } else {
+                static_assert(std::is_same<ResolutionType, Resolution>::value ||
+                              std::is_same<ResolutionType, std::string>::value ||
+                              std::is_same<ResolutionType, const char*>::value,
+                              "Unsupported resolution type");
+            }
+        }
         // Реализация метода для получения сегментов
         std::vector<std::string> get_segments() override;
     };
