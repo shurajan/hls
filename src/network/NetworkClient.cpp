@@ -1,7 +1,6 @@
 #include "NetworkClient.h"
 #include <algorithm>
 #include <iostream>
-#include <sstream>
 
 namespace network {
 
@@ -17,8 +16,16 @@ namespace network {
         return size * nmemb;
     }
 
-    NetworkClient::NetworkClient() {}
+    // Конструктор по умолчанию
+    NetworkClient::NetworkClient() : useMtls_(false) {}
 
+    // Конструктор для mTLS
+    NetworkClient::NetworkClient(const std::string& clientCertPath,
+                                 const std::string& clientKeyPath,
+                                 const std::string& caCertPath)
+        : clientCertPath_(clientCertPath), clientKeyPath_(clientKeyPath), caCertPath_(caCertPath), useMtls_(true) {}
+
+    // Реализация метода fetch
     std::string NetworkClient::fetch(const std::string& url) {
         CURL* curl = initCurl();
         std::string readBuffer;
@@ -30,6 +37,16 @@ namespace network {
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
             curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, HeaderCallback);
             curl_easy_setopt(curl, CURLOPT_HEADERDATA, &headersBuffer);
+
+            // Настройки для mTLS, если включен флаг useMtls_
+            if (useMtls_) {
+                curl_easy_setopt(curl, CURLOPT_SSLCERT, clientCertPath_.c_str());
+                curl_easy_setopt(curl, CURLOPT_SSLKEY, clientKeyPath_.c_str());
+                curl_easy_setopt(curl, CURLOPT_CAINFO, caCertPath_.c_str());
+
+                // Если нужно, можно указать пароль для приватного ключа
+                // curl_easy_setopt(curl, CURLOPT_KEYPASSWD, "private_key_password");
+            }
 
             CURLcode res = curl_easy_perform(curl);
             if (res != CURLE_OK) {

@@ -46,12 +46,13 @@ target_include_directories(hls PRIVATE ${SRC_DIR} ${NETWORK_SRC_DIR} ${HLS_SRC_D
 # Включаем заголовочные файлы в компиляцию для библиотеки NetworkClientLib
 target_include_directories(NetworkClientLib PUBLIC ${SRC_DIR} ${NETWORK_SRC_DIR})
 
-# Подключаем libcurl и zlib
+# Подключаем libcurl, zlib, nlohmann_json
 find_package(CURL REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 # Линкуем NetworkClientLib, libcurl и zlib к исполняемому файлу hls
-target_link_libraries(hls PRIVATE NetworkClientLib CURL::libcurl ZLIB::ZLIB)
+target_link_libraries(hls PRIVATE NetworkClientLib CURL::libcurl ZLIB::ZLIB nlohmann_json::nlohmann_json)
 
 # Сообщение о завершении настройки
 message(STATUS "HLS project configured successfully.")

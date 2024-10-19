@@ -18,7 +18,16 @@ size_t HeaderCallback(void* contents, size_t size, size_t nmemb, void* userp) {
 }
 
 NetworkClientSocks5::NetworkClientSocks5(const std::string& proxy_host, int proxy_port)
-    : proxy_host_(proxy_host), proxy_port_(proxy_port) {}
+    : proxy_host_(proxy_host), proxy_port_(proxy_port), useMtls_(false){}
+
+NetworkClientSocks5::NetworkClientSocks5(const std::string& proxy_host,
+                                         int proxy_port,
+                                         const std::string& clientCertPath,
+                                         const std::string& clientKeyPath,
+                                         const std::string& caCertPath)
+    : proxy_host_(proxy_host), proxy_port_(proxy_port),
+      clientCertPath_(clientCertPath), clientKeyPath_(clientKeyPath),
+      caCertPath_(caCertPath), useMtls_(true){}
 
 std::string NetworkClientSocks5::fetch(const std::string& url) {
     CURL* curl = initCurl();
@@ -44,6 +53,16 @@ std::string NetworkClientSocks5::fetch(const std::string& url) {
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
         curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, HeaderCallback);
         curl_easy_setopt(curl, CURLOPT_HEADERDATA, &headersBuffer);
+
+        // Настройки для mTLS, если включен флаг useMtls_
+        if (useMtls_) {
+            curl_easy_setopt(curl, CURLOPT_SSLCERT, clientCertPath_.c_str());
+            curl_easy_setopt(curl, CURLOPT_SSLKEY, clientKeyPath_.c_str());
+            curl_easy_setopt(curl, CURLOPT_CAINFO, caCertPath_.c_str());
+
+            // Если нужно, можно указать пароль для приватного ключа
+            // curl_easy_setopt(curl, CURLOPT_KEYPASSWD, "private_key_password");
+        }
 
         CURLcode res = curl_easy_perform(curl);
         if (res != CURLE_OK) {
