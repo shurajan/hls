@@ -1,81 +1,54 @@
-#include "LiveStreamSegments.h"
-#include "StreamDownloader.h"
-#include <iostream>
+#include "StreamDownloadManager.h"
 #include <NetworkClient.h>
 #include <NetworkClientSocks5.h>
+#include <iostream>
 #include <thread>
-#include <vector>
+#include <chrono>
 #include <string>
-#include <curl/curl.h>
-#include <nlohmann/json.hpp> // Библиотека для работы с JSON
+#include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
 int main() {
-    // Инициализация libcurl
-    CURLcode global_init = curl_global_init(CURL_GLOBAL_DEFAULT);
-    if (global_init != CURLE_OK) {
-        std::cerr << "Ошибка инициализации libcurl: " << curl_easy_strerror(global_init) << std::endl;
-        return 1;
-    }
+    // Создаем NetworkClient (например, через SOCKS5-прокси)
+    network::NetworkClientSocks5 network_client("127.0.0.1", 1080);
 
-    // Список URL для загрузки JSON-данных, которые содержат поле hls_source
-    std::vector<std::string> json_urls = {
-        "url1",
-        "url2"
+    // Создаем менеджер загрузки потоков
+    StreamDownloadManager manager(network_client);
+
+    // Пример добавления задач на загрузку потоков с REST API
+    std::vector<std::string> api_urls = {
+        "https://some.com/1/",
+        "https://some.com/2/"
     };
 
-    // Имя выходного файла (можно добавлять суффикс для каждого плейлиста)
-    std::string base_output_file = "output_stream";
-
-    // Функция для загрузки потока с плейлиста
-    auto download_playlist = [](const std::string& json_url, const std::string& output_file) {
-        try {
-            // Создаем NetworkClientSocks5 для работы с прокси
-            network::NetworkClientSocks5 network_client("127.0.0.1", 1080);
-
-            // Загружаем JSON-ответ
-            std::string json_response = network_client.fetch(json_url);
-            if (json_response.empty()) {
-                std::cerr << "Не удалось загрузить JSON: " << json_url << std::endl;
-                return;
-            }
-
-            // Парсим JSON и извлекаем поле hls_source
-            json parsed_json = json::parse(json_response);
-            if (!parsed_json.contains("hls_source")) {
-                std::cerr << "Поле hls_source отсутствует в JSON: " << json_url << std::endl;
-                return;
-            }
-            std::string playlist_url = parsed_json["hls_source"].get<std::string>();
-
-            // Создаем объект парсера и загрузчика
-            const std::string resolution = "Max";
-            m3u8::LiveStreamSegments parser(&network_client, playlist_url, resolution);
-            m3u8::StreamDownloader downloader(parser);
-
-            // Запуск загрузки
-            downloader.download_stream(playlist_url, output_file);
-            std::cout << "Загрузка завершена для: " << playlist_url << std::endl;
-        } catch (const std::exception& e) {
-            std::cerr << "Ошибка при загрузке " << json_url << ": " << e.what() << std::endl;
+    for (const auto& api_url : api_urls) {
+        // Запрашиваем JSON по API URL
+        std::string json_response = network_client.fetch(api_url);
+        if (json_response.empty()) {
+            std::cerr << "Не удалось загрузить JSON: " << api_url << std::endl;
+            continue;
         }
-    };
 
-    // Создаем потоки для загрузки каждого плейлиста
-    std::vector<std::thread> threads;
-    for (size_t i = 0; i < json_urls.size(); ++i) {
-        std::string output_file = base_output_file + std::to_string(i) + ".ts";
-        threads.emplace_back(download_playlist, json_urls[i], output_file);
+        // Парсим JSON и извлекаем поле hls_source
+        json parsed_json = json::parse(json_response);
+        if (!parsed_json.contains("hls_source")) {
+            std::cerr << "Поле hls_source отсутствует в JSON: " << api_url << std::endl;
+            continue;
+        }
+        std::string playlist_url = parsed_json["hls_source"].get<std::string>();
+
+        // Добавляем задачу на загрузку
+        manager.add_task(playlist_url, "output" + std::to_string(&api_url - &api_urls[0]) + ".ts", "Max");
     }
 
-    // Ожидаем завершения всех потоков
-    for (auto& thread : threads) {
-        thread.join();
+    // Поддерживаем приложение активным, пока задачи выполняются
+    while (!manager.is_stopped()) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
-    // Освобождение глобальных ресурсов libcurl
-    curl_global_cleanup();
+    // Завершаем все задачи при выходе
+    manager.stop_all();
 
     std::cout << "Все загрузки завершены." << std::endl;
     return 0;

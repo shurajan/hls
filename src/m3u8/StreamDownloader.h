@@ -11,12 +11,14 @@
 #include <thread>
 #include <iostream>
 #include <curl/curl.h>
+#include <atomic>
 
 namespace m3u8 {
 
 class StreamDownloader {
 public:
-    StreamDownloader(StreamSegments& parser) : parser_(parser) {}
+    StreamDownloader(StreamSegments& parser, std::atomic<bool>& stop_signal)
+        : parser_(parser), stop_signal_(stop_signal) {}
 
     void download_stream(const std::string& playlist_url, const std::string& output_file) {
         CURL* curl;
@@ -79,7 +81,6 @@ public:
                     std::cerr << "Ошибка загрузки сегмента: " << ts_link << " - " << curl_easy_strerror(res) << std::endl;
                     if (--max_retries <= 0) {
                         std::cerr << "Превышено максимальное количество попыток. Завершение загрузки." << std::endl;
-                        stop_signal_ = true;
                         break;
                     }
                 } else {
@@ -88,6 +89,8 @@ public:
                     downloaded_segments.insert(ts_link);
                     max_retries = 5;  // Сброс счетчика попыток после успешной загрузки
                 }
+
+                if (stop_signal_) break;
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
             }
@@ -105,13 +108,9 @@ public:
         std::cout << "Загрузка завершена." << std::endl;
     }
 
-    static void stop() {
-        stop_signal_ = true;
-    }
-
 private:
     StreamSegments& parser_;
-    inline static bool stop_signal_ = false;
+    std::atomic<bool>& stop_signal_; // Ссылка на флаг завершения
 
     static size_t write_data(void* ptr, size_t size, size_t nmemb, std::ofstream* file) {
         file->write(static_cast<char*>(ptr), size * nmemb);
