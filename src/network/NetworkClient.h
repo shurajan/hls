@@ -1,12 +1,12 @@
 #ifndef NETWORK_CLIENT_H
 #define NETWORK_CLIENT_H
 
-#include "NetworkClientBase.h"
 #include <string>
+#include <curl/curl.h>
 
 namespace network {
 
-    class NetworkClient : public NetworkClientBase {
+    class NetworkClient {
     public:
         // Конструктор по умолчанию
         NetworkClient();
@@ -17,7 +17,7 @@ namespace network {
                       const std::string& caCertPath);
 
         // Переопределенный метод fetch
-        std::string fetch(const std::string& url) override;
+        std::string fetch(const std::string& url);
 
     private:
         // Пути к сертификатам для mTLS
@@ -27,6 +27,16 @@ namespace network {
 
         // Флаг, указывающий, использовать ли mTLS
         bool useMtls_;
+
+        // Статические методы для обработки данных
+        static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp);
+        static size_t HeaderCallback(void* contents, size_t size, size_t nmemb, void* userp);
+
+        // Метод для инициализации CURL
+        CURL* initCurl();
+
+        // Метод для распаковки данных в формате gzip
+        static std::string decompress_gzip(const std::string& compressed_data);
     };
 
 } // namespace network

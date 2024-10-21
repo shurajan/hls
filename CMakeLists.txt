@@ -16,14 +16,9 @@ set(HLS_SRC_DIR "${SRC_DIR}/m3u8")
 set(MAIN_SOURCES
         ${SRC_DIR}/main.cpp
         ${SRC_DIR}/StreamDownloadManager.cpp
-        ${SRC_DIR}/StreamDownloadManager.h
         ${NETWORK_SRC_DIR}/NetworkClient.cpp
-        ${NETWORK_SRC_DIR}/NetworkClientSocks5.cpp
-        ${NETWORK_SRC_DIR}/NetworkClientBase.cpp
         ${HLS_SRC_DIR}/M3U8Parser.cpp
         ${HLS_SRC_DIR}/StreamSegments.cpp
-        ${HLS_SRC_DIR}/LiveStreamSegments.cpp
-        ${HLS_SRC_DIR}/FixedStreamSegments.cpp
         ${HLS_SRC_DIR}/StreamDownloader.h
         ${HLS_SRC_DIR}/ResolutionWrapper.h
 )

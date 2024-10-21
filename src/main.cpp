@@ -1,6 +1,5 @@
 #include "StreamDownloadManager.h"
 #include <NetworkClient.h>
-#include <NetworkClientSocks5.h>
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -19,8 +18,8 @@ int main() {
 
     // Пример добавления задач на загрузку потоков с REST API
     std::vector<std::string> api_urls = {
-        "some url",
-        "some url"
+        "url1",
+        "url2"
     };
 
     for (const auto& api_url : api_urls) {

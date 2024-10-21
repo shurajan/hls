@@ -1,55 +1,55 @@
 #include "StreamDownloadManager.h"
-#include "LiveStreamSegments.h"
 #include "StreamDownloader.h"
 #include <iostream>
 #include <fstream>
 #include <csignal>
-#include <chrono>
 #include <filesystem>
 
 namespace fs = std::filesystem;
-
-// Инициализация статического члена
 std::atomic<bool> StreamDownloadManager::stop_signal_(false);
 
-StreamDownloadManager::StreamDownloadManager(network::NetworkClientBase& network_client)
+StreamDownloadManager::StreamDownloadManager(network::NetworkClient& network_client)
     : network_client_(network_client) {
-    // Обработчик сигнала Ctrl-C
+    // Устанавливаем обработчик сигнала SIGINT для завершения задач при получении сигнала Ctrl-C
     std::signal(SIGINT, StreamDownloadManager::handle_signal);
 }
 
 StreamDownloadManager::~StreamDownloadManager() {
+    // Останавливаем все задачи при завершении объекта
     stop_all();
 }
 
-void StreamDownloadManager::add_task(const std::string& master_playlist_url, const std::string& output_file, const std::string& resolution) {
+bool StreamDownloadManager::add_task(const std::string& master_playlist_url, const std::string& output_file, const std::string& resolution) {
     std::lock_guard<std::mutex> lock(tasks_mutex_);
+    // Проверяем, существует ли уже задача с таким же выходным файлом
     if (download_tasks_.count(output_file) > 0) {
         std::cerr << "Задача для этого файла уже существует: " << output_file << std::endl;
-        return;
+        return false;
     }
 
-    // Добавляем новую задачу на загрузку
+    // Добавляем новую задачу на загрузку в асинхронном потоке
     download_tasks_[output_file] = std::async(std::launch::async, [this, master_playlist_url, output_file, resolution]() {
         try {
-            this->download_stream_task(master_playlist_url, output_file, resolution);
+            download_stream_task(master_playlist_url, output_file, resolution);
         } catch (const std::exception& e) {
             std::cerr << "Ошибка при загрузке потока " << master_playlist_url << ": " << e.what() << std::endl;
         } catch (...) {
             std::cerr << "Неизвестная ошибка при загрузке потока " << master_playlist_url << std::endl;
         }
     });
+    return true;
 }
 
 void StreamDownloadManager::stop_all() {
+    // Устанавливаем флаг остановки
     stop_signal_ = true;
 
-    // Ожидаем завершения всех задач
     std::lock_guard<std::mutex> lock(tasks_mutex_);
+    // Ожидаем завершения всех задач
     for (auto& task : download_tasks_) {
         if (task.second.valid()) {
             try {
-                task.second.get(); // Получаем результат выполнения, чтобы поймать исключения, если они были
+                task.second.get(); // Получаем результат выполнения, чтобы поймать возможные исключения
             } catch (const std::exception& e) {
                 std::cerr << "Ошибка в одной из задач: " << e.what() << std::endl;
             } catch (...) {
@@ -57,10 +57,11 @@ void StreamDownloadManager::stop_all() {
             }
         }
     }
+    // Очищаем список задач
     download_tasks_.clear();
 }
 
-bool StreamDownloadManager::is_stopped() {
+bool StreamDownloadManager::is_stopped() const {
     return stop_signal_;
 }
 
@@ -68,24 +69,25 @@ void StreamDownloadManager::download_stream_task(const std::string& master_playl
     std::string temp_file = output_file + ".part";
     try {
         // Создаем объекты для загрузки потока
-        m3u8::LiveStreamSegments parser(&network_client_, master_playlist_url, resolution);
+        m3u8::StreamSegments parser(&network_client_, master_playlist_url, resolution);
         m3u8::StreamDownloader downloader(parser, stop_signal_);
 
-        // Загружаем поток
+        // Выполняем загрузку потока
         downloader.download_stream(master_playlist_url, temp_file);
 
-        // Если загрузка завершена успешно, переименовываем файл
+        // Если загрузка завершена успешно, переименовываем временный файл
         finalize_download(temp_file, output_file);
     } catch (const std::exception& e) {
         std::cerr << "Ошибка при загрузке потока: " << e.what() << std::endl;
-        // Пытаемся переименовать файл даже в случае ошибки
+        // Пытаемся переименовать временный файл даже в случае ошибки
         finalize_download(temp_file, output_file);
     }
 }
 
 void StreamDownloadManager::finalize_download(const std::string& temp_file, const std::string& final_file) {
-    std::lock_guard<std::mutex> lock(file_mutex);
+    std::lock_guard<std::mutex> lock(file_mutex_);
     if (fs::exists(temp_file)) {
+        // Переименовываем временный файл в конечное имя
         fs::rename(temp_file, final_file);
         std::cout << "Файл " << final_file << " успешно сохранен." << std::endl;
     } else {
@@ -95,6 +97,7 @@ void StreamDownloadManager::finalize_download(const std::string& temp_file, cons
 
 void StreamDownloadManager::handle_signal(int signal) {
     if (signal == SIGINT) {
+        // Устанавливаем флаг остановки при получении SIGINT
         stop_signal_ = true;
         std::cout << "Сигнал завершения получен. Завершаем все задачи..." << std::endl;
     }

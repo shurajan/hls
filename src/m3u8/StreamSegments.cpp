@@ -71,4 +71,26 @@ namespace m3u8 {
         Resolution resolutionValue = ResolutionWrapper::fromString(resolution);
         this->initializeMediaPlaylist(masterPlaylistURI, resolutionValue);
     }
+
+    std::vector<std::string> StreamSegments::get_segments() {
+        std::vector<std::string> segmentURIs;
+
+        // Обновляем медиаплейлист для live потоков
+        mediaPlaylistContent = networkClient->fetch(mediaPlaylistURI);
+
+        // Парсинг медиаплейлиста
+        MediaPlaylist mediaParser;
+        mediaParser.parse(mediaPlaylistContent);
+
+        // Строим полный URL для каждого сегмента, если это не полный URL
+        for (const auto &segment: mediaParser.getSegments()) {
+            if (!isFullURL(segment.uri)) {
+                segmentURIs.push_back(baseURL + segment.uri); // Полный URL на сегмент
+            } else {
+                segmentURIs.push_back(segment.uri); // Если это полный URL, добавляем его напрямую
+            }
+        }
+
+        return segmentURIs;
+    }
 } // namespace m3u8
