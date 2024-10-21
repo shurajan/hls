@@ -19,8 +19,8 @@ int main() {
 
     // Пример добавления задач на загрузку потоков с REST API
     std::vector<std::string> api_urls = {
-        "https://213.142.146.31/api/chatvideocontext/babbyjacks/",
-        "https://213.142.146.31/api/chatvideocontext/kittyloffe/"
+        "some url",
+        "some url"
     };
 
     for (const auto& api_url : api_urls) {
