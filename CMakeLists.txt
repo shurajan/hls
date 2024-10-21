@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22.1)
+cmake_minimum_required(VERSION 3.15)
 
 # Имя проекта
 project(hls)
@@ -12,29 +12,20 @@ set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
 set(NETWORK_SRC_DIR "${SRC_DIR}/network")
 set(HLS_SRC_DIR "${SRC_DIR}/m3u8")
 
-# Главные исходные файлы
+# Главные исходные файлы, включая файлы для сети
 set(MAIN_SOURCES
         ${SRC_DIR}/main.cpp
+        ${SRC_DIR}/StreamDownloadManager.cpp
+        ${SRC_DIR}/StreamDownloadManager.h
+        ${NETWORK_SRC_DIR}/NetworkClient.cpp
+        ${NETWORK_SRC_DIR}/NetworkClientSocks5.cpp
+        ${NETWORK_SRC_DIR}/NetworkClientBase.cpp
         ${HLS_SRC_DIR}/M3U8Parser.cpp
         ${HLS_SRC_DIR}/StreamSegments.cpp
         ${HLS_SRC_DIR}/LiveStreamSegments.cpp
         ${HLS_SRC_DIR}/FixedStreamSegments.cpp
         ${HLS_SRC_DIR}/StreamDownloader.h
-        src/m3u8/ResolutionWrapper.h
-        src/StreamDownloadManager.cpp
-        src/StreamDownloadManager.h
-)
-
-# Исходники библиотеки NetworkClientLib
-set(NETWORK_SOURCES
-        ${NETWORK_SRC_DIR}/NetworkClient.cpp
-        ${NETWORK_SRC_DIR}/NetworkClientSocks5.cpp
-        ${NETWORK_SRC_DIR}/NetworkClientBase.cpp
-)
-
-# Создаем статическую библиотеку NetworkClientLib
-add_library(NetworkClientLib STATIC
-        ${NETWORK_SOURCES}
+        ${HLS_SRC_DIR}/ResolutionWrapper.h
 )
 
 # Добавляем исполняемый файл hls
@@ -45,16 +36,13 @@ add_executable(hls
 # Включаем заголовочные файлы в компиляцию для hls
 target_include_directories(hls PRIVATE ${SRC_DIR} ${NETWORK_SRC_DIR} ${HLS_SRC_DIR})
 
-# Включаем заголовочные файлы в компиляцию для библиотеки NetworkClientLib
-target_include_directories(NetworkClientLib PUBLIC ${SRC_DIR} ${NETWORK_SRC_DIR})
-
 # Подключаем libcurl, zlib, nlohmann_json
 find_package(CURL REQUIRED)
 find_package(ZLIB REQUIRED)
-find_package(nlohmann_json REQUIRED)
+find_package(nlohmann_json 3.10.5 REQUIRED)
 
-# Линкуем NetworkClientLib, libcurl и zlib к исполняемому файлу hls
-target_link_libraries(hls PRIVATE NetworkClientLib CURL::libcurl ZLIB::ZLIB nlohmann_json::nlohmann_json)
+# Линкуем необходимые библиотеки к исполняемому файлу hls
+target_link_libraries(hls PRIVATE CURL::libcurl ZLIB::ZLIB nlohmann_json::nlohmann_json)
 
 # Сообщение о завершении настройки
 message(STATUS "HLS project configured successfully.")

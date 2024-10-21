@@ -11,6 +11,10 @@ namespace network {
         NetworkClientBase();
         virtual ~NetworkClientBase();
 
+        // Статические методы для обработки данных
+        static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp);
+        static size_t HeaderCallback(void* contents, size_t size, size_t nmemb, void* userp);
+
         // Виртуальный метод для выполнения сетевого запроса
         virtual std::string fetch(const std::string& url) = 0;
 

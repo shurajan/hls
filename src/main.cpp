@@ -11,20 +11,21 @@ using json = nlohmann::json;
 
 int main() {
     // Создаем NetworkClient (например, через SOCKS5-прокси)
-    network::NetworkClientSocks5 network_client("127.0.0.1", 1080);
+    network::NetworkClient network_client = network::NetworkClient();
+    network::NetworkClient mtls_network_client = network::NetworkClient("client-cert.pem", "client-key.pem", "ca-cert.pem");
 
     // Создаем менеджер загрузки потоков
     StreamDownloadManager manager(network_client);
 
     // Пример добавления задач на загрузку потоков с REST API
     std::vector<std::string> api_urls = {
-        "https://some.com/1/",
-        "https://some.com/2/"
+        "https://213.142.146.31/api/chatvideocontext/babbyjacks/",
+        "https://213.142.146.31/api/chatvideocontext/kittyloffe/"
     };
 
     for (const auto& api_url : api_urls) {
         // Запрашиваем JSON по API URL
-        std::string json_response = network_client.fetch(api_url);
+        std::string json_response = mtls_network_client.fetch(api_url);
         if (json_response.empty()) {
             std::cerr << "Не удалось загрузить JSON: " << api_url << std::endl;
             continue;

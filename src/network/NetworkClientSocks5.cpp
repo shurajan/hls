@@ -4,19 +4,6 @@
 #include <iostream>
 
 namespace network {
-
-size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
-    return size * nmemb;
-}
-
-size_t HeaderCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    std::string header((char*)contents, size * nmemb);
-    std::string* headers = static_cast<std::string*>(userp);
-    headers->append(header);
-    return size * nmemb;
-}
-
 NetworkClientSocks5::NetworkClientSocks5(const std::string& proxy_host, int proxy_port)
     : proxy_host_(proxy_host), proxy_port_(proxy_port), useMtls_(false){}
 
