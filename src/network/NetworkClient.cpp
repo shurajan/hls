@@ -1,6 +1,7 @@
 #include "NetworkClient.h"
 #include <algorithm>
 #include <iostream>
+#include <utility>
 #include <zlib.h>
 #include <curl/curl.h>
 
@@ -9,10 +10,10 @@ namespace network {
     NetworkClient::NetworkClient() : useMtls_(false) {}
 
     // Конструктор для mTLS
-    NetworkClient::NetworkClient(const std::string& clientCertPath,
-                                 const std::string& clientKeyPath,
-                                 const std::string& caCertPath)
-        : clientCertPath_(clientCertPath), clientKeyPath_(clientKeyPath), caCertPath_(caCertPath), useMtls_(true) {}
+    NetworkClient::NetworkClient(std::string  clientCertPath,
+                                 std::string  clientKeyPath,
+                                 std::string  caCertPath)
+        : clientCertPath_(std::move(clientCertPath)), clientKeyPath_(std::move(clientKeyPath)), caCertPath_(std::move(caCertPath)), useMtls_(true) {}
 
     // Реализация метода fetch
     std::string NetworkClient::fetch(const std::string& url) {
@@ -42,7 +43,7 @@ namespace network {
                 std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << "\n";
             } else {
                 // Приводим заголовки к нижнему регистру
-                std::transform(headersBuffer.begin(), headersBuffer.end(), headersBuffer.begin(), ::tolower);
+                std::ranges::transform(headersBuffer, headersBuffer.begin(), ::tolower);
 
                 if (headersBuffer.find("content-encoding: gzip") != std::string::npos) {
                     try {
@@ -64,13 +65,13 @@ namespace network {
     }
 
     size_t NetworkClient::WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-        ((std::string*)userp)->append((char*)contents, size * nmemb);
+        static_cast<std::string *>(userp)->append(static_cast<char *>(contents), size * nmemb);
         return size * nmemb;
     }
 
     size_t NetworkClient::HeaderCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-        std::string header((char*)contents, size * nmemb);
-        std::string* headers = static_cast<std::string*>(userp);
+        const std::string header(static_cast<char *>(contents), size * nmemb);
+        auto* headers = static_cast<std::string*>(userp);
         headers->append(header);
         return size * nmemb;
     }

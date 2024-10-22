@@ -12,9 +12,9 @@ namespace network {
         NetworkClient();
 
         // Конструктор для mTLS
-        NetworkClient(const std::string& clientCertPath,
-                      const std::string& clientKeyPath,
-                      const std::string& caCertPath);
+        NetworkClient(std::string  clientCertPath,
+                      std::string  clientKeyPath,
+                      std::string  caCertPath);
 
         // Переопределенный метод fetch
         std::string fetch(const std::string& url);
