@@ -1,104 +1,122 @@
-#include "StreamDownloadManager.h"
-#include "StreamDownloader.h"
-#include <iostream>
-#include <fstream>
-#include <csignal>
-#include <filesystem>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <queue>
+#include <thread>
+#include <atomic>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
+#include <condition_variable>
+#include <string>
+#include <optional>
+#include "m3u8/StreamDownloader.h"
+#include "m3u8/ResolutionWrapper.h"
+#include "network/NetworkClient.h"
 
-namespace fs = std::filesystem;
-std::atomic<bool> StreamDownloadManager::stop_signal_(false);
+namespace py = pybind11;
 
-StreamDownloadManager::StreamDownloadManager(network::NetworkClient& network_client)
-    : network_client_(network_client) {
-    // Устанавливаем обработчик сигнала SIGINT для завершения задач при получении сигнала Ctrl-C
-    std::signal(SIGINT, StreamDownloadManager::handle_signal);
-}
+class Task {
+public:
+    std::string name;
+    std::string master_playlist_url;
+    m3u8::Resolution resolution;
 
-StreamDownloadManager::~StreamDownloadManager() {
-    // Останавливаем все задачи при завершении объекта
-    stop_all();
-}
+    Task(const std::string& name, const std::string& url, const std::string& res_str)
+        : name(name), master_playlist_url(url), resolution(m3u8::ResolutionWrapper::fromString(res_str)) {}
+};
 
-bool StreamDownloadManager::add_task(const std::string& master_playlist_url, const std::string& output_file, const std::string& resolution) {
-    std::lock_guard<std::mutex> lock(tasks_mutex_);
-    // Проверяем, существует ли уже задача с таким же выходным файлом
-    if (download_tasks_.count(output_file) > 0) {
-        std::cerr << "Задача для этого файла уже существует: " << output_file << std::endl;
-        return false;
+class DownloadManager {
+public:
+    DownloadManager() : stop_signal_(false) {}
+
+    ~DownloadManager() {
+        stop_all_tasks();
     }
 
-    // Добавляем новую задачу на загрузку в асинхронном потоке
-    download_tasks_[output_file] = std::async(std::launch::async, [this, master_playlist_url, output_file, resolution]() {
-        try {
-            download_stream_task(master_playlist_url, output_file, resolution);
-        } catch (const std::exception& e) {
-            std::cerr << "Ошибка при загрузке потока " << master_playlist_url << ": " << e.what() << std::endl;
-        } catch (...) {
-            std::cerr << "Неизвестная ошибка при загрузке потока " << master_playlist_url << std::endl;
+    // Добавление новой задачи
+    bool add_task(const std::string& task_name, const std::string& master_playlist_url, const std::string& resolution_str) {
+        std::lock_guard lock(queue_mutex_);
+        if (task_names_.contains(task_name)) {
+            std::cerr << "Задача с именем \"" << task_name << "\" уже существует." << std::endl;
+            return false; // Задача с таким именем уже существует
         }
-    });
-    return true;
-}
+        tasks_queue_.emplace(task_name, master_playlist_url, resolution_str);
+        task_names_.insert(task_name);
+        queue_condition_.notify_one(); // Уведомляем поток о добавлении новой задачи
+        std::cout << "Добавлена задача: " << task_name << std::endl;
+        return true;
+    }
 
-void StreamDownloadManager::stop_all() {
-    // Устанавливаем флаг остановки
-    stop_signal_ = true;
+    // Запуск обработки задач
+    void start_processing() {
+        stop_signal_ = false; // Сбрасываем сигнал остановки
+        processing_thread_ = std::thread(&DownloadManager::process_tasks, this);
+    }
 
-    std::lock_guard<std::mutex> lock(tasks_mutex_);
-    // Ожидаем завершения всех задач
-    for (auto& task : download_tasks_) {
-        if (task.second.valid()) {
-            try {
-                task.second.get(); // Получаем результат выполнения, чтобы поймать возможные исключения
-            } catch (const std::exception& e) {
-                std::cerr << "Ошибка в одной из задач: " << e.what() << std::endl;
-            } catch (...) {
-                std::cerr << "Неизвестная ошибка в одной из задач." << std::endl;
+    // Остановка всех задач
+    void stop_all_tasks() {
+        stop_signal_ = true;
+        queue_condition_.notify_all(); // Уведомляем поток для выхода из ожидания
+        if (processing_thread_.joinable()) {
+            processing_thread_.join();
+        }
+    }
+
+    // Проверка, запущен ли менеджер
+    bool is_running() const {
+        return !stop_signal_;
+    }
+
+private:
+    std::queue<Task> tasks_queue_;
+    std::unordered_set<std::string> task_names_;
+    std::mutex queue_mutex_;
+    std::condition_variable queue_condition_;
+    std::thread processing_thread_;
+    std::atomic<bool> stop_signal_;
+
+    // Метод обработки задач
+    void process_tasks() {
+        while (true) {
+            std::optional<Task> current_task;
+            {
+                std::unique_lock lock(queue_mutex_);
+                // Ожидание новых задач или сигнала остановки
+                queue_condition_.wait(lock, [this] { return !tasks_queue_.empty() || stop_signal_; });
+
+                // Проверка на сигнал остановки
+                if (stop_signal_ && tasks_queue_.empty()) {
+                    break; // Завершаем работу, если установлен сигнал остановки и очередь пуста
+                }
+
+                if (!tasks_queue_.empty()) {
+                    // Извлекаем задачу из очереди
+                    current_task = tasks_queue_.front();
+                    task_names_.erase(current_task->name); // Удаляем имя задачи из множества
+                    tasks_queue_.pop();
+                }
+            }
+
+            if (current_task) {
+                // Инициализируем компоненты для загрузки
+                network::NetworkClient network_client;
+                m3u8::StreamSegments parser(&network_client, current_task->master_playlist_url, current_task->resolution);
+                m3u8::StreamDownloader downloader(parser, stop_signal_);
+
+                // Выполняем загрузку потока
+                std::string temp_file = current_task->name + ".ts";
+                std::cout << "Запуск загрузки: " << current_task->name << std::endl;
+                downloader.download_stream(current_task->master_playlist_url, temp_file);
             }
         }
     }
-    // Очищаем список задач
-    download_tasks_.clear();
-}
+};
 
-bool StreamDownloadManager::is_stopped() const {
-    return stop_signal_;
-}
-
-void StreamDownloadManager::download_stream_task(const std::string& master_playlist_url, const std::string& output_file, const std::string& resolution) {
-    std::string temp_file = output_file + ".part";
-    try {
-        // Создаем объекты для загрузки потока
-        m3u8::StreamSegments parser(&network_client_, master_playlist_url, resolution);
-        m3u8::StreamDownloader downloader(parser, stop_signal_);
-
-        // Выполняем загрузку потока
-        downloader.download_stream(master_playlist_url, temp_file);
-
-        // Если загрузка завершена успешно, переименовываем временный файл
-        finalize_download(temp_file, output_file);
-    } catch (const std::exception& e) {
-        std::cerr << "Ошибка при загрузке потока: " << e.what() << std::endl;
-        // Пытаемся переименовать временный файл даже в случае ошибки
-        finalize_download(temp_file, output_file);
-    }
-}
-
-void StreamDownloadManager::finalize_download(const std::string& temp_file, const std::string& final_file) {
-    std::lock_guard<std::mutex> lock(file_mutex_);
-    if (fs::exists(temp_file)) {
-        // Переименовываем временный файл в конечное имя
-        fs::rename(temp_file, final_file);
-        std::cout << "Файл " << final_file << " успешно сохранен." << std::endl;
-    } else {
-        std::cerr << "Временный файл " << temp_file << " не найден для переименования." << std::endl;
-    }
-}
-
-void StreamDownloadManager::handle_signal(int signal) {
-    if (signal == SIGINT) {
-        // Устанавливаем флаг остановки при получении SIGINT
-        stop_signal_ = true;
-        std::cout << "Сигнал завершения получен. Завершаем все задачи..." << std::endl;
-    }
+PYBIND11_MODULE(myextension, m) {
+    py::class_<DownloadManager>(m, "DownloadManager")
+        .def(py::init<>())
+        .def("add_task", &DownloadManager::add_task)
+        .def("start_processing", &DownloadManager::start_processing)
+        .def("stop_all_tasks", &DownloadManager::stop_all_tasks)
+        .def("is_running", &DownloadManager::is_running);
 }
