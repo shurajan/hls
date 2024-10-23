@@ -1,0 +1,14 @@
+{
+  "mtlsConfig": {
+    "clientCertPath": "path/to/client.crt",
+    "clientKeyPath": "path/to/client.key",
+    "caCertPath": "path/to/ca.crt"
+  },
+  "urlList": [
+    "https://api.example.com/data1",
+    "https://api.example.com/data2",
+    "https://api.example.com/data3",
+    "https://api.example.com/data4",
+    "https://api.example.com/data5"
+  ]
+}

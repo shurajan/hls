@@ -7,10 +7,6 @@ project(hls)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Устанавливаем путь к TgBot (один из способов)
-set(TgBot_DIR "/usr/local/lib/cmake/TgBot")
-# или
-# set(CMAKE_PREFIX_PATH "/usr/local/lib/cmake/TgBot" ${CMAKE_PREFIX_PATH})
 
 # Указываем пути к исходным файлам
 set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
@@ -20,9 +16,14 @@ set(HLS_SRC_DIR "${SRC_DIR}/m3u8")
 # Главные исходные файлы, включая файлы для сети
 set(SOURCES
         ${SRC_DIR}/main.cpp
+        ${SRC_DIR}/AppConfig.cpp
+        ${SRC_DIR}/AppConfig.h
+        ${SRC_DIR}/App.cpp
+        ${SRC_DIR}/App.h
         ${NETWORK_SRC_DIR}/NetworkClient.cpp
         ${HLS_SRC_DIR}/M3U8Parser.cpp
         ${HLS_SRC_DIR}/StreamSegments.cpp
+        src/RoomInfo.h
 )
 
 # Создаем исполняемый файл
