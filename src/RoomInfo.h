@@ -8,6 +8,9 @@
 #include <optional>
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <ctime>
+#include <sstream>
+#include <iomanip>
 
 // Структура для хранения извлеченных данных
 struct RoomInfo {
@@ -34,5 +37,22 @@ inline std::optional<RoomInfo> processJsonResponse(const std::string& jsonRespon
         return std::nullopt;
     }
 }
+
+inline std::string generateFilename(const std::string& broadcasterUsername) {
+    // Получаем текущее время
+    auto now = std::chrono::system_clock::now();
+    auto timeT = std::chrono::system_clock::to_time_t(now);
+
+    // Форматируем время как "YYYY-MM-DD_HH-MM"
+    std::stringstream timestamp;
+    timestamp << std::put_time(std::localtime(&timeT), "%Y-%m-%d_%H-%M");
+
+    // Создаем имя файла: broadcasterUsername + "_" + timestamp + ".ts"
+    std::string filename = broadcasterUsername + "_" + timestamp.str() + ".ts";
+
+    return filename;
+}
+
+
 
 #endif // ROOMINFO_H

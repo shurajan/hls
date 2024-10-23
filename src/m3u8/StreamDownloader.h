@@ -1,5 +1,5 @@
-#ifndef STREAM_DOWNLOADER_H
-#define STREAM_DOWNLOADER_H
+#ifndef M3U8_STREAM_DOWNLOADER_H
+#define M3U8_STREAM_DOWNLOADER_H
 
 #include "StreamSegments.h"
 #include <string>
@@ -16,10 +16,11 @@ namespace m3u8 {
 
 class StreamDownloader {
 public:
-    StreamDownloader(StreamSegments& parser, std::atomic<bool>& stop_signal)
-        : parser_(parser), stop_signal_(stop_signal) {}
+    // Конструктор принимает ссылку на глобальную переменную завершения
+    StreamDownloader(StreamSegments& parser, std::atomic<bool>& global_keep_running)
+        : parser_(parser), keepRunning(global_keep_running) {}
 
-    void download_stream(const std::string& playlist_url, const std::string& output_file) {
+    void download_stream(const std::string& output_file) {
         if (!initialize_curl()) {
             std::cerr << "Ошибка инициализации cURL" << std::endl;
             return;
@@ -34,23 +35,19 @@ public:
 
         std::unordered_set<std::string> downloaded_segments;
 
-        while (!stop_signal_) {
-            // Получаем ссылки на сегменты
-            std::vector<std::string> ts_links = parser_.get_segments();
-            if (ts_links.empty()) {
-                std::cerr << "Нет доступных сегментов в данный момент." << std::endl;
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                continue;
+        // Основной цикл загрузки потоков, пока не получен сигнал остановки
+        while (keepRunning) {
+            std::vector<std::string> ts_links;
+            if (!fetch_segments(parser_, ts_links)) {
+                std::cerr << "Не удалось получить сегменты. Завершение загрузки." << std::endl;
+                break;
             }
 
-            // Попытка загрузить сегменты
             bool success = process_segments(ts_file, ts_links);
             if (success) {
-                // Если загрузка успешна, добавляем сегменты в загруженные
                 downloaded_segments.insert(ts_links.begin(), ts_links.end());
                 std::cout << "Новые сегменты успешно загружены." << std::endl;
             } else {
-                // Если загрузка не удалась, прерываем работу
                 std::cerr << "Не удалось загрузить все сегменты. Завершение загрузки." << std::endl;
                 break;
             }
@@ -63,7 +60,7 @@ public:
 
 private:
     StreamSegments& parser_;
-    std::atomic<bool>& stop_signal_;
+    std::atomic<bool>& keepRunning;
     CURL* curl_ = nullptr;
 
     bool initialize_curl() {
@@ -74,6 +71,7 @@ private:
     void cleanup_curl() {
         if (curl_) {
             curl_easy_cleanup(curl_);
+            curl_ = nullptr;
         }
     }
 
@@ -82,19 +80,34 @@ private:
         for (int attempt = 1; attempt <= retries; ++attempt) {
             bool all_segments_loaded = true;
             for (const auto& ts_link : ts_links) {
-                // Попытка загрузить сегмент
                 if (!download_segment(ts_link, ts_file)) {
                     all_segments_loaded = false;
                     std::cerr << "Попытка " << attempt << " из " << retries << ": ошибка загрузки сегмента " << ts_link << std::endl;
-                    break; // Прерываем текущую попытку, чтобы попробовать снова
+                    break;
                 }
             }
             if (all_segments_loaded) {
-                return true; // Все сегменты успешно загружены
+                return true;
             }
-            std::this_thread::sleep_for(std::chrono::seconds(2)); // Ожидание перед следующей попыткой
+            std::this_thread::sleep_for(std::chrono::seconds(2));
         }
-        return false; // Не удалось загрузить все сегменты за 5 попыток
+        return false;
+    }
+
+    bool fetch_segments(StreamSegments& parser, std::vector<std::string>& ts_links) {
+        int failed_attempts = 0;
+        while (failed_attempts < 10) {
+            ts_links = parser.get_segments();
+            if (!ts_links.empty()) {
+                return true;
+            }
+            failed_attempts++;
+            std::cerr << "Нет доступных сегментов в данный момент. Попытка "
+                      << failed_attempts << " из 10." << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+        }
+        std::cerr << "Не удалось получить новые сегменты 10 раз подряд. Завершение попыток." << std::endl;
+        return false;
     }
 
     bool download_segment(const std::string& url, std::ofstream& ts_file) {
@@ -107,7 +120,6 @@ private:
             std::cerr << "Ошибка загрузки сегмента: " << url << " - " << curl_easy_strerror(res) << std::endl;
             return false;
         }
-
         std::cout << "Загружен сегмент: " << url << std::endl;
         return true;
     }
@@ -118,6 +130,6 @@ private:
     }
 };
 
-}
+} // namespace m3u8
 
-#endif // STREAM_DOWNLOADER_H
+#endif // M3U8_STREAM_DOWNLOADER_H

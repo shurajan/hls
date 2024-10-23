@@ -8,6 +8,8 @@
 #include <csignal>
 #include "network/NetworkClient.h"
 #include "RoomInfo.h"
+#include "StreamDownloader.h"
+#include <curl/curl.h>
 
 static std::atomic<bool> globalKeepRunning(true); // Глобальная переменная для отслеживания завершения
 
@@ -27,6 +29,10 @@ void App::signalHandler(int signal) {
 }
 
 void App::run() {
+    if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
+        std::cerr << "Ошибка инициализации cURL" << std::endl;
+        return;
+    }
     // Получаем настройки mTLS
     const MtlsConfig& mtlsConfig = appConfig.getMtlsConfig();
 
@@ -45,6 +51,7 @@ void App::run() {
         thread.join();
     }
 
+    curl_global_cleanup();
     std::cout << "All threads have finished. Program is exiting." << std::endl;
 }
 
@@ -74,6 +81,14 @@ void App::threadFunction(int threadNumber, const std::string& url) {
                         std::cout << "Room Status: " << roomInfo.roomStatus << std::endl;
                         std::cout << "Broadcaster Username: " << roomInfo.broadcasterUsername << std::endl;
                         std::cout << "HLS Source: " << roomInfo.hlsSource << std::endl;
+
+                        if (!roomInfo.hlsSource.empty()) {
+                            network::NetworkClient networkClient = network::NetworkClient();
+                            m3u8::StreamSegments streamSegments = m3u8::StreamSegments(&networkClient, roomInfo.hlsSource, "Max");
+                            m3u8::StreamDownloader streamDownloader(streamSegments, globalKeepRunning);
+                            auto file_name = generateFilename(roomInfo.broadcasterUsername);
+                            streamDownloader.download_stream(file_name);
+                        }
                     } else {
                         // В случае ошибки при обработке JSON
                         std::cerr << "Failed to retrieve room information." << std::endl;
