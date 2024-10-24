@@ -10,6 +10,7 @@
 #include "RoomInfo.h"
 #include "StreamDownloader.h"
 #include <curl/curl.h>
+#include <fmt/core.h>
 
 static std::atomic<bool> globalKeepRunning(true); // Глобальная переменная для отслеживания завершения
 
@@ -91,7 +92,7 @@ void App::threadFunction(int threadNumber, const std::string& url) {
                         std::cerr << "Failed to retrieve room information." << std::endl;
                     }
                 } else {
-                    std::cout << "Thread " << threadNumber << " received an empty response." << std::endl;
+                    std::cerr << "Thread " << threadNumber << " received an empty response." << std::endl;
                 }
             } catch (const std::exception& e) {
                 std::cerr << "Thread " << threadNumber << " encountered a JSON processing error: " << e.what() << std::endl;
@@ -104,4 +105,5 @@ void App::threadFunction(int threadNumber, const std::string& url) {
     }
 
     std::cout << "Thread " << threadNumber << " is stopping." << std::endl;
+
 }
