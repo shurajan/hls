@@ -3,6 +3,7 @@
 //
 
 #// App.h
+#include "RoomInfo.h"
 #ifndef APP_H
 #define APP_H
 
@@ -17,6 +18,8 @@ public:
 
     // Запуск приложения
     void run();
+
+    void do_work(std::optional<RoomInfo> roomInfoOpt);
 
     // Статический метод для установки обработчика сигналов
     static void setupSignalHandler();

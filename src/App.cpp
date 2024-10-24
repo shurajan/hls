@@ -55,6 +55,21 @@ void App::run() {
     std::cout << "All threads have finished. Program is exiting." << std::endl;
 }
 
+void App::do_work(std::optional<RoomInfo> roomInfoOpt) {
+    const RoomInfo& roomInfo = *roomInfoOpt;
+    std::cout << "Room Status: " << roomInfo.roomStatus << std::endl;
+    std::cout << "Broadcaster Username: " << roomInfo.broadcasterUsername << std::endl;
+    std::cout << "HLS Source: " << roomInfo.hlsSource << std::endl;
+
+    if (!roomInfo.hlsSource.empty()) {
+        network::NetworkClient networkClient = network::NetworkClient();
+        m3u8::StreamSegments streamSegments = m3u8::StreamSegments(&networkClient, roomInfo.hlsSource, "Max");
+        m3u8::StreamDownloader streamDownloader(streamSegments, globalKeepRunning);
+        auto file_name = generateFilename(roomInfo.broadcasterUsername);
+        streamDownloader.download_stream(file_name);
+    }
+}
+
 void App::threadFunction(int threadNumber, const std::string& url) {
     try {
         // Создаем отдельный объект NetworkClient для каждого потока
@@ -66,43 +81,22 @@ void App::threadFunction(int threadNumber, const std::string& url) {
 
         while (globalKeepRunning) {
             std::cout << "Thread " << threadNumber << " is fetching URL: " << url << std::endl;
-
-            // Выполняем запрос и получаем JSON-ответ
             std::string response = client.fetch(url);
-
-            // Обрабатываем JSON-ответ
             try {
                 if (!response.empty()) {
-                    // Попытка обработать JSON-ответ
                     auto roomInfoOpt = processJsonResponse(response);
                     if (roomInfoOpt) {
-                        // Если данные успешно извлечены, выводим их
-                        const RoomInfo& roomInfo = *roomInfoOpt;
-                        std::cout << "Room Status: " << roomInfo.roomStatus << std::endl;
-                        std::cout << "Broadcaster Username: " << roomInfo.broadcasterUsername << std::endl;
-                        std::cout << "HLS Source: " << roomInfo.hlsSource << std::endl;
-
-                        if (!roomInfo.hlsSource.empty()) {
-                            network::NetworkClient networkClient = network::NetworkClient();
-                            m3u8::StreamSegments streamSegments = m3u8::StreamSegments(&networkClient, roomInfo.hlsSource, "Max");
-                            m3u8::StreamDownloader streamDownloader(streamSegments, globalKeepRunning);
-                            auto file_name = generateFilename(roomInfo.broadcasterUsername);
-                            streamDownloader.download_stream(file_name);
-                        }
+                        do_work(roomInfoOpt);
                     } else {
-                        // В случае ошибки при обработке JSON
                         std::cerr << "Failed to retrieve room information." << std::endl;
                     }
-
                 } else {
                     std::cout << "Thread " << threadNumber << " received an empty response." << std::endl;
                 }
             } catch (const std::exception& e) {
-                // Обработка исключений при парсинге или обработке JSON
                 std::cerr << "Thread " << threadNumber << " encountered a JSON processing error: " << e.what() << std::endl;
             }
 
-            // Ожидаем 1 минуту перед следующим запросом
             std::this_thread::sleep_for(std::chrono::minutes(1));
         }
     } catch (const std::exception& e) {
